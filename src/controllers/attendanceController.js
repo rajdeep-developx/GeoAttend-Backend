@@ -30,7 +30,7 @@ const { sendCheckInReceipt, sendLowAttendanceAlert } = require("../services/emai
 const { getCheckinSettings } = require("../models/settingsModel");
 const { buildStudentAnalytics } = require("../utils/analyticsHelper");
 
-const { resolveTeacherName } = require("../data/teacherMap");
+const { resolveTeacherName } = require("../utils/teacherMap");
 const {
   getQrContext,
   getStudentsForSections,
@@ -359,7 +359,7 @@ async function manualMark(req, res, next) {
   try {
     const { identifier, section, status } = req.body;
 
-    const teacherName = resolveTeacherName(req.user);
+    const teacherName = await resolveTeacherName(req.user);
     if (!teacherName) {
       return res.status(403).json({
         message: "Is admin account ke liye teacher mapped nahi hai (teacherMap.js check karo).",
@@ -441,7 +441,7 @@ if (!studentSection || (section && studentSection !== section)) {
 
 async function qrContext(req, res, next) {
   try {
-    const teacherName = resolveTeacherName(req.user);
+    const teacherName = await resolveTeacherName(req.user);
 
     if (!teacherName) {
       return res.status(403).json({
@@ -467,7 +467,7 @@ async function generateQr(req, res, next) {
     let { subject, section } = req.body;
     const { room, time } = req.body;
 
-    const teacherName = resolveTeacherName(req.user);
+    const teacherName = await resolveTeacherName(req.user);
     const ctx = teacherName ? await getQrContext(teacherName) : null;
 
     if ((!subject || !section) && ctx) {
@@ -590,7 +590,7 @@ const section = sectionResult.rows[0]?.section;
 
 async function roster(req, res, next) {
   try {
-    const teacherName = resolveTeacherName(req.user);
+    const teacherName = await resolveTeacherName(req.user);
 
     if (!teacherName) {
       return res.status(403).json({
