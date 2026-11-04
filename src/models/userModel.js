@@ -72,6 +72,31 @@ async function listStudents() {
   return rows;
 }
 
+async function setUserPassword(userId, passwordHash) {
+  const { rows } = await pool.query(
+    `UPDATE users
+     SET password_hash = $1
+     WHERE id = $2
+     RETURNING id`,
+    [passwordHash, userId]
+  );
+
+  return rows[0];
+}
+
+async function findUserByLoginIdentifier(identifier) {
+  const { rows } = await pool.query(
+    `SELECT id, name, email, role, identifier,
+            password_hash, is_verified, created_at
+     FROM users
+     WHERE identifier = $1
+     LIMIT 1`,
+    [identifier]
+  );
+
+  return rows[0];
+}
+
 module.exports = {
   findUserByEmailOrIdentifier,
   findUserByIdentifierAndEmail,
@@ -81,4 +106,6 @@ module.exports = {
   setOtp,
   clearOtpAndVerify,
   listStudents,
+  setUserPassword,
+  findUserByLoginIdentifier,
 };

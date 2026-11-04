@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
     identifier VARCHAR(40) UNIQUE NOT NULL,    -- roll number / staff ID
     otp_hash TEXT,
     otp_expires_at TIMESTAMPTZ,
+    password_hash TEXT,
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
