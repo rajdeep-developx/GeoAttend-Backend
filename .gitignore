@@ -1,0 +1,21 @@
+node_modules
+.env
+npm-debug.log
+.DS_Store
+
+node_modules/
+.env.*
+!.env.example
+
+src/data/rollToSection.json
+src/data/timetable.json
+src/data/teacherMap.js
+
+# Private academic data - keep local only
+/data/rollToSection.json
+/data/timetable.json
+
+# Local backup files
+*.backup.js
+*.backup.sql
+/src/db/schema.backup.sql
