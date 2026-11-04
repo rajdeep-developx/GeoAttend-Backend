@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS users (
     otp_hash TEXT,
     otp_expires_at TIMESTAMPTZ,
     password_hash TEXT,
+password_setup_token_hash TEXT,
+password_setup_expires_at TIMESTAMPTZ,
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

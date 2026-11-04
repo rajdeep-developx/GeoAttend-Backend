@@ -237,6 +237,100 @@ async function loginWithPassword(req, res, next) {
   }
 }
 
+
+/* POST /api/auth/setup-password
+   Body: { identifier, setupCode, password }
+*/
+async function setupPassword(req, res, next) {
+  try {
+    const { identifier, setupCode, password } = req.body;
+
+    if (
+      typeof identifier !== "string" ||
+      typeof setupCode !== "string" ||
+      typeof password !== "string" ||
+      !identifier.trim() ||
+      !setupCode.trim() ||
+      !password
+    ) {
+      return res.status(400).json({
+        message: "Roll number, setup code and password are required",
+      });
+    }
+
+    if (password.length < 12) {
+      return res.status(400).json({
+        message: "Password must be at least 12 characters long",
+      });
+    }
+
+    const result = await pool.query(
+      `SELECT id, role, is_verified, password_hash,
+              password_setup_token_hash,
+              password_setup_expires_at
+       FROM users
+       WHERE identifier = $1
+       LIMIT 1`,
+      [identifier.trim()]
+    );
+
+    const user = result.rows[0];
+
+    if (
+      !user ||
+      user.role !== "student" ||
+      !user.is_verified ||
+      user.password_hash ||
+      !user.password_setup_token_hash ||
+      !user.password_setup_expires_at ||
+      new Date(user.password_setup_expires_at) <= new Date()
+    ) {
+      return res.status(400).json({
+        message: "Invalid, expired or already-used setup code",
+      });
+    }
+
+    const codeMatches = await bcrypt.compare(
+      setupCode.trim(),
+      user.password_setup_token_hash
+    );
+
+    if (!codeMatches) {
+      return res.status(400).json({
+        message: "Invalid, expired or already-used setup code",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // Atomically save the password and consume the one-time code.
+    const updated = await pool.query(
+      `UPDATE users
+       SET password_hash = $1,
+           password_setup_token_hash = NULL,
+           password_setup_expires_at = NULL
+       WHERE id = $2
+         AND password_hash IS NULL
+         AND password_setup_token_hash = $3
+         AND password_setup_expires_at > NOW()
+       RETURNING id`,
+      [passwordHash, user.id, user.password_setup_token_hash]
+    );
+
+    if (updated.rowCount !== 1) {
+      return res.status(400).json({
+        message: "Setup code is invalid, expired or already used",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Password set successfully. You can now log in.",
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/auth/me (protected)
 async function getMe(req, res, next) {
   try {
@@ -258,5 +352,6 @@ module.exports = {
   sendOtp,
   verifyOtp,
   loginWithPassword,
+setupPassword,
   getMe,
 };
