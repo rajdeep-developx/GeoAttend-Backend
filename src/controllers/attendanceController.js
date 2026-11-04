@@ -683,11 +683,85 @@ async function triggerLowAttendanceAlert(req, res, next) {
   }
 }
 
+// =========================================================
+// GET STUDENT WEEKLY TIMETABLE
+// =========================================================
+
+async function myTimetable(req, res, next) {
+  try {
+    const identifier = String(
+      req.user?.identifier ||
+      req.user?.roll_number ||
+      req.user?.rollNumber ||
+      ""
+    ).trim();
+
+    if (!identifier) {
+      return res.status(400).json({
+        message: "Student roll number is missing from your account.",
+      });
+    }
+
+    const sectionResult = await pool.query(
+      `SELECT section
+       FROM student_sections
+       WHERE roll_number = $1`,
+      [identifier]
+    );
+
+    const section = sectionResult.rows[0]?.section;
+
+    if (!section) {
+      return res.status(404).json({
+        message: "No section found for your account.",
+      });
+    }
+
+    const timetableResult = await pool.query(
+      `SELECT day, time, subject, room, teacher
+       FROM timetable_slots
+       WHERE section = $1
+       ORDER BY
+         CASE day
+           WHEN 'Monday' THEN 1
+           WHEN 'Tuesday' THEN 2
+           WHEN 'Wednesday' THEN 3
+           WHEN 'Thursday' THEN 4
+           WHEN 'Friday' THEN 5
+           WHEN 'Saturday' THEN 6
+           WHEN 'Sunday' THEN 7
+         END,
+         id`,
+      [section]
+    );
+
+    const timetable = {};
+
+    for (const row of timetableResult.rows) {
+      if (!timetable[row.day]) {
+        timetable[row.day] = [];
+      }
+
+      timetable[row.day].push({
+        time: row.time,
+        subject: row.subject,
+        room: row.room,
+        teacher: row.teacher,
+      });
+    }
+
+    return res.json({ section, timetable });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   // Student
   checkIn,
   myHistory,
   myAnalytics,
+  myTimetable,
 
   // Admin
   roster,

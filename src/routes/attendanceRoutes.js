@@ -4,6 +4,7 @@ const {
   checkIn,
   myHistory,
   myAnalytics,
+  myTimetable,
 
   // Admin
   roster,
@@ -26,6 +27,7 @@ const router = express.Router();
 router.post("/checkin", protect, checkIn);
 router.get("/history", protect, myHistory);
 router.get("/my-analytics", protect, myAnalytics);
+router.get("/my-timetable", protect, myTimetable);
 
 // ========================================
 // ADMIN
