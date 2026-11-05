@@ -11,11 +11,13 @@ async function insertBatch(client, table, columns, rows) {
   for (let start = 0; start < rows.length; start += BATCH_SIZE) {
     const batch = rows.slice(start, start + BATCH_SIZE);
     const values = [];
+
     const placeholders = batch.map((row, rowIndex) => {
       const rowPlaceholders = row.map((value, colIndex) => {
         values.push(value);
         return `$${rowIndex * columns.length + colIndex + 1}`;
       });
+
       return `(${rowPlaceholders.join(", ")})`;
     });
 
@@ -28,14 +30,22 @@ async function insertBatch(client, table, columns, rows) {
 }
 
 async function main() {
-  if (!timetable || typeof timetable !== "object" ||
-      !rollToSection || typeof rollToSection !== "object" ||
-      !TEACHER_MAP || typeof TEACHER_MAP !== "object") {
+  if (
+    !timetable ||
+    typeof timetable !== "object" ||
+    !rollToSection ||
+    typeof rollToSection !== "object" ||
+    !TEACHER_MAP ||
+    typeof TEACHER_MAP !== "object"
+  ) {
     throw new Error("One or more private data files have an invalid format.");
   }
 
   const studentRows = Object.entries(rollToSection).map(
-    ([roll, section]) => [String(roll).trim(), String(section).trim()]
+    ([roll, section]) => [
+      String(roll).trim(),
+      String(section).trim()
+    ]
   );
 
   const timetableRows = [];
@@ -47,11 +57,12 @@ async function main() {
       }
 
       for (const slot of slots) {
-       if (!slot || !slot.time || !slot.subject) {
-  throw new Error(
-    `A timetable entry in section ${section} is missing required fields.`
-  );
-}
+        if (!slot || !slot.time || !slot.subject) {
+          throw new Error(
+            `A timetable entry in section ${section} is missing required fields.`
+          );
+        }
+
         timetableRows.push([
           String(section).trim(),
           day,
@@ -60,7 +71,9 @@ async function main() {
           slot.room == null || slot.room === ""
             ? null
             : String(slot.room).trim(),
-          null
+          slot.teacher == null || slot.teacher === ""
+            ? null
+            : String(slot.teacher).trim()
         ]);
       }
     }
@@ -85,8 +98,6 @@ async function main() {
   try {
     await client.query("BEGIN");
 
-    // These are dedicated academic-data tables only.
-    // Do not delete users or attendance records.
     await client.query("DELETE FROM timetable_slots");
     await client.query("DELETE FROM student_sections");
     await client.query("DELETE FROM teacher_accounts");
@@ -118,6 +129,11 @@ async function main() {
     console.log(`Student-section records: ${studentRows.length}`);
     console.log(`Timetable records: ${timetableRows.length}`);
     console.log(`Teacher mapping records: ${teacherRows.length}`);
+    console.log(
+      `Timetable slots with teacher: ${
+        timetableRows.filter(row => row[5] !== null).length
+      }`
+    );
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

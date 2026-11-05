@@ -237,9 +237,18 @@ async function loginWithPassword(req, res, next) {
   }
 }
 
+/*
+  POST /api/auth/setup-password
 
-/* POST /api/auth/setup-password
-   Body: { identifier, setupCode, password }
+  Body:
+  {
+    identifier,
+    setupCode,
+    password
+  }
+
+  Supports:
+  Student and Teacher (admin role).
 */
 async function setupPassword(req, res, next) {
   try {
@@ -254,7 +263,7 @@ async function setupPassword(req, res, next) {
       !password
     ) {
       return res.status(400).json({
-        message: "Roll number, setup code and password are required",
+        message: "ID, setup code and password are required",
       });
     }
 
@@ -276,9 +285,10 @@ async function setupPassword(req, res, next) {
 
     const user = result.rows[0];
 
+    // Allow only verified student and teacher accounts.
     if (
       !user ||
-      user.role !== "student" ||
+      !["student", "admin"].includes(user.role) ||
       !user.is_verified ||
       user.password_hash ||
       !user.password_setup_token_hash ||
@@ -303,13 +313,15 @@ async function setupPassword(req, res, next) {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Atomically save the password and consume the one-time code.
+    // Atomically save password and consume the setup code.
     const updated = await pool.query(
       `UPDATE users
        SET password_hash = $1,
            password_setup_token_hash = NULL,
            password_setup_expires_at = NULL
        WHERE id = $2
+         AND role IN ('student', 'admin')
+         AND is_verified = TRUE
          AND password_hash IS NULL
          AND password_setup_token_hash = $3
          AND password_setup_expires_at > NOW()
@@ -352,6 +364,6 @@ module.exports = {
   sendOtp,
   verifyOtp,
   loginWithPassword,
-setupPassword,
+  setupPassword,
   getMe,
 };
