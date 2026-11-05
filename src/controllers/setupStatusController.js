@@ -1,3 +1,4 @@
+
 const pool = require("../config/db");
 
 async function checkSetupStatus(req, res) {
@@ -10,19 +11,43 @@ async function checkSetupStatus(req, res) {
       });
     }
 
-    const result = await pool.query(
-      `SELECT password_hash
-       FROM users
-       WHERE identifier = $1
-         AND role = 'student'
-         AND is_verified = TRUE
+    // Step 1: Verify roll number from academic student records
+    const studentResult = await pool.query(
+      `SELECT roll_number
+       FROM student_sections
+       WHERE TRIM(roll_number) = $1
        LIMIT 1`,
       [identifier]
     );
 
-    const user = result.rows[0];
+    if (studentResult.rows.length === 0) {
+      return res.status(404).json({
+        message: "Unable to verify this roll number.",
+      });
+    }
 
+    // Step 2: Find the student's GeoAttend account
+    const userResult = await pool.query(
+      `SELECT password_hash, is_verified
+       FROM users
+       WHERE TRIM(identifier) = $1
+         AND role = 'student'
+       LIMIT 1`,
+      [identifier]
+    );
+
+    const user = userResult.rows[0];
+
+    // Valid academic roll number, but no account exists yet
     if (!user) {
+      return res.status(200).json({
+        status: "pending",
+        message:
+          "Password setup is pending. Please contact the GeoAttend developer to get your one-time setup code.",
+      });
+    }
+
+    if (!user.is_verified) {
       return res.status(404).json({
         message: "Unable to verify this roll number.",
       });
